@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CHIP — Cloud-Honest Image Pipeline</title>
+<style>
+  :root {
+    --bg: #0e1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --accent: #39d353;
+    --warn: #e3b341;
+    --fail: #f85149;
+    --pass: #39d353;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--mono); font-size: 13px; line-height: 1.6; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  header { padding: 20px 32px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 16px; }
+  header h1 { font-size: 18px; letter-spacing: 0.05em; color: var(--accent); }
+  header p { color: var(--muted); font-size: 11px; }
+
+  .main { max-width: 1100px; margin: 0 auto; padding: 24px 32px; }
+
+  /* Query bar */
+  .query-bar { display: flex; gap: 10px; margin-bottom: 12px; }
+  .query-bar input {
+    flex: 1; background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 10px 14px; font-family: var(--mono); font-size: 13px;
+    border-radius: 4px; outline: none;
+  }
+  .query-bar input:focus { border-color: var(--accent); }
+  .query-bar button {
+    background: var(--accent); color: #0e1117; border: none; padding: 10px 20px;
+    font-family: var(--mono); font-size: 13px; font-weight: 700; cursor: pointer;
+    border-radius: 4px; letter-spacing: 0.05em;
+  }
+  .query-bar button:hover { opacity: 0.85; }
+  .query-bar button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Example chips */
+  .examples { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 24px; }
+  .chip {
+    background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+    padding: 4px 10px; border-radius: 12px; cursor: pointer; font-size: 11px;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--text); }
+
+  /* Section labels */
+  .section { margin-top: 28px; }
+  .section-title {
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 10px; padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Parsed spec */
+  .spec-box {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+    padding: 12px 16px; font-size: 12px; color: var(--muted); white-space: pre-wrap;
+  }
+
+  /* THE COMPARISON TABLE — hero element */
+  .comparison-table-wrap {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+    overflow: hidden;
+  }
+  .comparison-table-header {
+    background: #1c2128; padding: 12px 16px; font-size: 12px;
+    color: var(--muted); border-bottom: 1px solid var(--border);
+  }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    text-align: left; padding: 10px 14px; font-size: 11px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border);
+  }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 12px; }
+  tr:last-child td { border-bottom: none; }
+  tr.winner td { background: #1a2a1a; }
+  tr.winner td:first-child { border-left: 3px solid var(--accent); }
+
+  .gap-positive { color: var(--fail); font-weight: 700; }   /* catalog understates — bad */
+  .gap-negative { color: var(--accent); font-weight: 700; } /* catalog overstates — image was fine */
+  .gap-ok { color: var(--muted); }
+
+  .badge-selected {
+    background: var(--accent); color: #0e1117; padding: 2px 6px;
+    border-radius: 3px; font-size: 10px; font-weight: 700; margin-left: 8px;
+  }
+
+  /* Images */
+  .images { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .img-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+    overflow: hidden;
+  }
+  .img-card img { width: 100%; display: block; }
+  .img-label {
+    padding: 8px 12px; font-size: 11px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.08em; border-top: 1px solid var(--border);
+  }
+
+  /* QA checks */
+  .qa-row { display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .qa-row:last-child { border-bottom: none; }
+  .qa-id { min-width: 200px; font-size: 12px; color: var(--text); }
+  .qa-msg { font-size: 12px; color: var(--muted); flex: 1; }
+  .status-pass { color: var(--pass); font-weight: 700; }
+  .status-warn { color: var(--warn); font-weight: 700; }
+  .status-fail { color: var(--fail); font-weight: 700; }
+
+  /* Stats */
+  .stats-box { display: flex; flex-wrap: wrap; gap: 16px; }
+  .stat-item { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 10px 16px; }
+  .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .stat-value { font-size: 18px; color: var(--text); font-weight: 700; margin-top: 2px; }
+
+  /* Download */
+  .dl-btn {
+    display: inline-block; margin-top: 10px; background: var(--surface);
+    border: 1px solid var(--border); color: var(--accent); padding: 8px 16px;
+    border-radius: 4px; font-family: var(--mono); font-size: 12px;
+    cursor: pointer; text-decoration: none;
+  }
+  .dl-btn:hover { border-color: var(--accent); }
+
+  .spinner { color: var(--muted); padding: 20px 0; }
+  .error-box { background: #2d1b1b; border: 1px solid var(--fail); border-radius: 4px; padding: 12px 16px; color: var(--fail); font-size: 12px; }
+
+  #results { display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>CHIP</h1>
+    <p>Cloud-Honest Image Pipeline · Sentinel-2 L2A · Earth Search</p>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- Query input -->
+  <div style="margin-top: 20px;">
+    <div class="query-bar">
+      <input type="text" id="query-input" placeholder="NDVI over willamette, August 2024, only clear days" />
+      <button id="run-btn" onclick="runQuery()">▶ RUN</button>
+    </div>
+    <div class="examples" id="examples"></div>
+  </div>
+
+  <!-- Status -->
+  <div id="status"></div>
+
+  <!-- Results -->
+  <div id="results">
+
+    <!-- Parsed spec -->
+    <div class="section">
+      <div class="section-title">Here's what I understood</div>
+      <pre class="spec-box" id="spec-display"></pre>
+    </div>
+
+    <!-- THE COMPARISON TABLE -->
+    <div class="section">
+      <div class="section-title">☁ Cloud Score Comparison — scene-level vs your AOI</div>
+      <div class="comparison-table-wrap">
+        <div class="comparison-table-header">
+          The catalog's <code>eo:cloud_cover</code> describes a 110 km × 110 km scene.
+          CHIP measures it over your actual AOI using the SCL band.
+          The gap between these two columns is the whole point.
+        </div>
+        <table id="candidates-table">
+          <thead>
+            <tr>
+              <th>Scene ID</th>
+              <th>Date</th>
+              <th>Catalog scene %</th>
+              <th>True AOI %</th>
+              <th>Gap</th>
+              <th>Coverage</th>
+            </tr>
+          </thead>
+          <tbody id="candidates-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="section" id="stats-section" style="display:none;">
+      <div class="section-title">Statistics</div>
+      <div class="stats-box" id="stats-display"></div>
+    </div>
+
+    <!-- Images -->
+    <div class="section">
+      <div class="section-title">Imagery</div>
+      <div class="images" id="images-display"></div>
+    </div>
+
+    <!-- QA Checks -->
+    <div class="section">
+      <div class="section-title">QA Report</div>
+      <div class="comparison-table-wrap" id="qa-display"></div>
+    </div>
+
+    <!-- Download -->
+    <div class="section" id="download-section" style="display:none;">
+      <div class="section-title">Download</div>
+      <a class="dl-btn" id="geotiff-link" href="#" download>⬇ Download GeoTIFF</a>
+    </div>
+
+  </div><!-- #results -->
+
+</div><!-- .main -->
+
+<script>
+const EXAMPLES = [
+  "NDVI over willamette, August 2024, only clear days",
+  "true color over punjab on 15 July 2024",
+  "NDVI over iowa, summer 2024",
+  "show me po_valley in June 2024",
+  "NDWI over willamette, 2024",
+  "true color over bbox=[-123.10,44.52,-123.02,44.58], August 2024",
+];
+
+// Populate example chips
+const examplesEl = document.getElementById("examples");
+EXAMPLES.forEach(q => {
+  const chip = document.createElement("span");
+  chip.className = "chip";
+  chip.textContent = q;
+  chip.onclick = () => {
+    document.getElementById("query-input").value = q;
+    runQuery();
+  };
+  examplesEl.appendChild(chip);
+});
+
+// Enter key runs query
+document.getElementById("query-input").addEventListener("keydown", e => {
+  if (e.key === "Enter") runQuery();
+});
+
+function setStatus(html) {
+  document.getElementById("status").innerHTML = html;
+}
+
+async function runQuery() {
+  const text = document.getElementById("query-input").value.trim();
+  if (!text) return;
+
+  const btn = document.getElementById("run-btn");
+  btn.disabled = true;
+  document.getElementById("results").style.display = "none";
+  setStatus('<div class="spinner">Parsing query…</div>');
+
+  try {
+    // Step 1: parse
+    const parseResp = await fetch("/api/parse", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({text}),
+    });
+    if (!parseResp.ok) throw new Error(await parseResp.text());
+    const spec = await parseResp.json();
+
+    document.getElementById("spec-display").textContent = JSON.stringify(spec, null, 2);
+
+    setStatus('<div class="spinner">Running pipeline… (first run fetches live data, subsequent runs use cache)</div>');
+
+    // Step 2: chip
+    const chipResp = await fetch("/api/chip", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({spec}),
+    });
+    if (!chipResp.ok) throw new Error(await chipResp.text());
+    const result = await chipResp.json();
+
+    setStatus("");
+    renderResult(result);
+    document.getElementById("results").style.display = "block";
+
+  } catch (err) {
+    setStatus(`<div class="error-box">Error: ${err.message}</div>`);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderResult(result) {
+  // Candidates table
+  const tbody = document.getElementById("candidates-body");
+  tbody.innerHTML = "";
+  (result.candidates || []).forEach(c => {
+    const gap = c.aoi_cloud_pct - c.scene_cloud_pct;
+    const gapClass = Math.abs(gap) <= 15 ? "gap-ok" : (gap > 0 ? "gap-positive" : "gap-negative");
+    const gapSign = gap > 0 ? "+" : "";
+    const tr = document.createElement("tr");
+    if (c.selected) tr.className = "winner";
+    tr.innerHTML = `
+      <td>${c.item_id}${c.selected ? '<span class="badge-selected">SELECTED</span>' : ''}</td>
+      <td>${c.datetime ? c.datetime.slice(0,10) : "—"}</td>
+      <td>${c.scene_cloud_pct.toFixed(1)}%</td>
+      <td>${c.aoi_cloud_pct.toFixed(1)}%</td>
+      <td class="${gapClass}">${gapSign}${gap.toFixed(1)} pts</td>
+      <td>${c.valid_pct.toFixed(0)}%</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Stats
+  const stats = result.stats || {};
+  const statsKeys = Object.keys(stats);
+  const statsSection = document.getElementById("stats-section");
+  if (statsKeys.length > 0) {
+    const display = document.getElementById("stats-display");
+    display.innerHTML = statsKeys.map(k => `
+      <div class="stat-item">
+        <div class="stat-label">${k.replace(/_/g,' ')}</div>
+        <div class="stat-value">${typeof stats[k] === 'number' ? stats[k].toFixed(4) : stats[k]}</div>
+      </div>
+    `).join("");
+    statsSection.style.display = "block";
+  } else {
+    statsSection.style.display = "none";
+  }
+
+  // Images
+  const imagesEl = document.getElementById("images-display");
+  imagesEl.innerHTML = "";
+  const images = [
+    {path: result.preview_png, label: "True Colour"},
+    {path: result.product_png, label: result.spec?.product?.toUpperCase() || "Product"},
+    {path: result.cloudmask_png, label: "Cloud Mask Overlay"},
+  ];
+  images.forEach(({path, label}) => {
+    if (!path) return;
+    const url = "/outputs/" + path.split("/outputs/")[1];
+    const card = document.createElement("div");
+    card.className = "img-card";
+    card.innerHTML = `<img src="${url}" loading="lazy" /><div class="img-label">${label}</div>`;
+    imagesEl.appendChild(card);
+  });
+
+  // QA
+  const qaEl = document.getElementById("qa-display");
+  qaEl.innerHTML = (result.checks || []).map(ch => {
+    const iconClass = `status-${ch.status}`;
+    const icons = {pass: "✓", warn: "⚠", fail: "✗"};
+    return `
+      <div class="qa-row">
+        <div class="qa-id"><span class="${iconClass}">${icons[ch.status] || "?"}</span> ${ch.id}</div>
+        <div class="qa-msg">${ch.message}</div>
+      </div>
+    `;
+  }).join("");
+
+  // Download
+  if (result.geotiff) {
+    const url = "/outputs/" + result.geotiff.split("/outputs/")[1];
+    document.getElementById("geotiff-link").href = url;
+    document.getElementById("download-section").style.display = "block";
+  } else {
+    document.getElementById("download-section").style.display = "none";
+  }
+}
+</script>
+</body>
+</html>

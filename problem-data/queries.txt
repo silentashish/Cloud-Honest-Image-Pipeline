@@ -1,0 +1,8 @@
+# Example queries. The rules parser must handle all of these with the LLM disabled.
+# The UI shows these as clickable chips.
+NDVI over willamette, August 2024, only clear days
+true color over punjab on 15 July 2024
+NDVI over iowa, summer 2024
+show me po_valley in June 2024
+NDWI over willamette, 2024
+true color over bbox=[-123.10,44.52,-123.02,44.58], August 2024

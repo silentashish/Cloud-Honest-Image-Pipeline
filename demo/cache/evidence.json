@@ -1,0 +1,38 @@
+{
+  "punjab_false_clear": {
+    "item_id": "S2A_43REQ_20240715_0_L2A",
+    "datetime": "2024-07-15T05:50:24.235000Z",
+    "crs": "EPSG:32643",
+    "scene_cloud_pct": 12.23,
+    "aoi_cloud_pct": 82.65,
+    "baseline": "05.10",
+    "nodata": 0.0,
+    "shape": [
+      671,
+      769
+    ],
+    "ndvi_mean_correct": -0.0888,
+    "ndvi_mean_no_offset": -0.0612,
+    "ndvi_mean_correct_clearonly": 0.0344,
+    "negative_reflectance_pct": 0.35,
+    "zero_pixels_pct": 0.0
+  },
+  "willamette_wrongly_rejected": {
+    "item_id": "S2B_10TDQ_20240802_0_L2A",
+    "datetime": "2024-08-02T19:22:11.388000Z",
+    "crs": "EPSG:32610",
+    "scene_cloud_pct": 47.44,
+    "aoi_cloud_pct": 1.89,
+    "baseline": "05.11",
+    "nodata": 0.0,
+    "shape": [
+      667,
+      636
+    ],
+    "ndvi_mean_correct": 0.4974,
+    "ndvi_mean_no_offset": 0.2989,
+    "ndvi_mean_correct_clearonly": 0.4991,
+    "negative_reflectance_pct": 0.01,
+    "zero_pixels_pct": 0.0
+  }
+}
