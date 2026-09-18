@@ -254,6 +254,10 @@ function setStatus(html) {
   document.getElementById("status").innerHTML = html;
 }
 
+function outputUrl(path) {
+  return "/outputs/" + path.split(/[\\/]/).pop();
+}
+
 async function runQuery() {
   const text = document.getElementById("query-input").value.trim();
   if (!text) return;
@@ -345,7 +349,7 @@ function renderResult(result) {
   ];
   images.forEach(({path, label}) => {
     if (!path) return;
-    const url = "/outputs/" + path.split("/outputs/")[1];
+    const url = outputUrl(path);
     const card = document.createElement("div");
     card.className = "img-card";
     card.innerHTML = `<img src="${url}" loading="lazy" /><div class="img-label">${label}</div>`;
@@ -367,7 +371,7 @@ function renderResult(result) {
 
   // Download
   if (result.geotiff) {
-    const url = "/outputs/" + result.geotiff.split("/outputs/")[1];
+    const url = outputUrl(result.geotiff);
     document.getElementById("geotiff-link").href = url;
     document.getElementById("download-section").style.display = "block";
   } else {

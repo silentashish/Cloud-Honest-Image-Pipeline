@@ -62,8 +62,12 @@ def rank_candidates(
     # Sort by honest AOI cloud, best first
     candidates.sort(key=lambda c: c.aoi_cloud_pct)
 
+    # Apply the honest cloud threshold — filter AFTER scoring so the full
+    # comparison table is preserved for display, but the winner respects it.
+    eligible = [c for c in candidates if c.aoi_cloud_pct <= max_aoi_cloud]
+    pool = eligible if eligible else candidates  # fall back to all if none qualify
+
     # Mark winner
-    if candidates:
-        candidates[0].selected = True
+    pool[0].selected = True
 
     return candidates

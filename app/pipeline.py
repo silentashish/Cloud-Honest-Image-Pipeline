@@ -111,7 +111,7 @@ def run(spec: QuerySpec, out_dir: str = "outputs") -> ChipResult:
     os.makedirs(out_dir, exist_ok=True)
 
     # --- Cache ---
-    cache_key = f"{spec.aoi_name}_{_bbox_hash(spec.bbox)}_{spec.product}_{spec.start}_{spec.end}"
+    cache_key = f"{spec.aoi_name}_{_bbox_hash(spec.bbox)}_{spec.product}_{spec.start}_{spec.end}_{spec.max_aoi_cloud}"
     if cache_key in _CACHE:
         return _CACHE[cache_key]
 
@@ -225,7 +225,6 @@ def run(spec: QuerySpec, out_dir: str = "outputs") -> ChipResult:
         ok = _np.abs(denom) > 1e-4
         ndwi_arr = _np.full_like(g_r, _np.nan)
         ndwi_arr[ok] = _np.clip((g_r[ok] - n_r[ok]) / denom[ok], -1, 1)
-        stats = {"mean_ndwi_all": float(_np.nanmean(ndwi_arr))}
         product_path = str(Path(out_dir) / f"{item_id}_ndwi.png")
         ndvi_png(ndwi_arr, product_path)  # reuse the ramp renderer
         cloudmask_path = str(Path(out_dir) / f"{item_id}_cloudmask.png")
