@@ -66,6 +66,11 @@
     background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
     padding: 12px 16px; font-size: 12px; color: var(--muted); white-space: pre-wrap;
   }
+  .spec-summary {
+    font-size: 14px; color: var(--text); margin-bottom: 6px;
+  }
+  details summary { color: var(--muted); font-size: 11px; cursor: pointer; user-select: none; }
+  details summary:hover { color: var(--text); }
 
   /* THE COMPARISON TABLE — hero element */
   .comparison-table-wrap {
@@ -110,7 +115,7 @@
   /* QA checks */
   .qa-row { display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
   .qa-row:last-child { border-bottom: none; }
-  .qa-id { min-width: 200px; font-size: 12px; color: var(--text); }
+  .qa-id { min-width: 220px; font-size: 12px; color: var(--text); }
   .qa-msg { font-size: 12px; color: var(--muted); flex: 1; }
   .status-pass { color: var(--pass); font-weight: 700; }
   .status-warn { color: var(--warn); font-weight: 700; }
@@ -166,7 +171,7 @@
     <!-- Parsed spec -->
     <div class="section">
       <div class="section-title">Here's what I understood</div>
-      <pre class="spec-box" id="spec-display"></pre>
+      <div id="spec-display"></div>
     </div>
 
     <!-- THE COMPARISON TABLE -->
@@ -175,8 +180,12 @@
       <div class="comparison-table-wrap">
         <div class="comparison-table-header">
           The catalog's <code>eo:cloud_cover</code> describes a 110 km × 110 km scene.
-          CHIP measures it over your actual AOI using the SCL band.
-          The gap between these two columns is the whole point.
+          CHIP measures it over your actual AOI using the SCL band. The gap between these
+          two columns is the whole point. &nbsp;
+          <span style="color:var(--fail); font-weight:700">red gap</span> = catalog understates
+          (scene was cloudier than stated over your AOI) &nbsp;|&nbsp;
+          <span style="color:var(--accent); font-weight:700">green gap</span> = catalog overstates
+          (image was usable but would have been filtered out).
         </div>
         <table id="candidates-table">
           <thead>
@@ -232,6 +241,17 @@ const EXAMPLES = [
   "true color over bbox=[-123.10,44.52,-123.02,44.58], August 2024",
 ];
 
+// #6 — human-readable labels for QA check IDs
+const CHECK_LABELS = {
+  reflectance_offset: "Reflectance offset (BOA_ADD_OFFSET)",
+  aoi_cloud_vs_scene: "AOI cloud vs catalog claim",
+  nodata_as_zero:     "Nodata/zero pixel ambiguity",
+  crs_note:           "Coordinate reference system",
+  valid_pixels:       "AOI swath coverage",
+  offline_mode:       "Offline cache",
+  no_data:            "Scene availability",
+};
+
 // Populate example chips
 const examplesEl = document.getElementById("examples");
 EXAMPLES.forEach(q => {
@@ -254,8 +274,43 @@ function setStatus(html) {
   document.getElementById("status").innerHTML = html;
 }
 
+// #10 — derive a served URL from a filesystem path (basename only)
 function outputUrl(path) {
   return "/outputs/" + path.split(/[\\/]/).pop();
+}
+
+// #1 — human summary of the parsed spec, raw JSON behind a disclosure toggle
+function renderSpec(spec) {
+  const dateRange = spec.start === spec.end
+    ? spec.start
+    : `${spec.start} → ${spec.end}`;
+  const cloud = spec.max_aoi_cloud < 100
+    ? `, max AOI cloud ${spec.max_aoi_cloud}%`
+    : "";
+  const summary = `${spec.product.replace("_", " ")} · ${spec.aoi_name} · ${dateRange}${cloud}`;
+  return `<div class="spec-summary">${summary}</div>`
+       + `<details><summary>raw spec</summary>`
+       + `<pre class="spec-box" style="margin-top:6px">${JSON.stringify(spec, null, 2)}</pre></details>`;
+}
+
+// #2 — elapsed-time counter so the user knows the system is alive during COG fetches
+let _timerHandle = null;
+let _timerStart = 0;
+
+function startTimer(label) {
+  _timerStart = Date.now();
+  clearInterval(_timerHandle);
+  // Set immediately so there's no blank flash before the first tick
+  setStatus(`<div class="spinner">${label} <span style="color:var(--muted)">(0.0s)</span></div>`);
+  _timerHandle = setInterval(() => {
+    const s = ((Date.now() - _timerStart) / 1000).toFixed(1);
+    setStatus(`<div class="spinner">${label} <span style="color:var(--muted)">(${s}s)</span></div>`);
+  }, 200);
+}
+
+function stopTimer() {
+  clearInterval(_timerHandle);
+  _timerHandle = null;
 }
 
 async function runQuery() {
@@ -265,10 +320,10 @@ async function runQuery() {
   const btn = document.getElementById("run-btn");
   btn.disabled = true;
   document.getElementById("results").style.display = "none";
-  setStatus('<div class="spinner">Parsing query…</div>');
 
   try {
     // Step 1: parse
+    startTimer("Parsing query…");
     const parseResp = await fetch("/api/parse", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
@@ -277,11 +332,25 @@ async function runQuery() {
     if (!parseResp.ok) throw new Error(await parseResp.text());
     const spec = await parseResp.json();
 
-    document.getElementById("spec-display").textContent = JSON.stringify(spec, null, 2);
+    // #1 — show human summary
+    document.getElementById("spec-display").innerHTML = renderSpec(spec);
 
-    setStatus('<div class="spinner">Running pipeline… (first run fetches live data, subsequent runs use cache)</div>');
+    // #9 — stop early if AOI was not recognised
+    if (spec.aoi_name === "__unknown__") {
+      stopTimer();
+      setStatus(`<div class="error-box">
+        <strong>AOI not recognised.</strong> Couldn't find a location in your query.
+        <div style="margin-top:8px;color:var(--muted);font-size:11px">
+          Try one of the example queries, or name a location like "willamette", "punjab",
+          or provide a <code>bbox=[w,s,e,n]</code> literal.
+        </div>
+      </div>`);
+      btn.disabled = false;
+      return;
+    }
 
     // Step 2: chip
+    startTimer("Scoring candidates — fetching SCL bands…");
     const chipResp = await fetch("/api/chip", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
@@ -290,11 +359,26 @@ async function runQuery() {
     if (!chipResp.ok) throw new Error(await chipResp.text());
     const result = await chipResp.json();
 
+    stopTimer();
     setStatus("");
+    // #4 — check for zero-candidate result before rendering
+    const failChecks = (result.checks || []).filter(c => c.status === "fail");
+    const isEmpty = !result.candidates || result.candidates.length === 0;
+    if (isEmpty && failChecks.length > 0) {
+      setStatus(`<div class="error-box" style="margin-top:16px">
+        <strong>No results.</strong> ${failChecks[0].message}
+        <div style="margin-top:8px;color:var(--muted);font-size:11px">
+          Try widening the date range, raising the max-cloud threshold, or choosing a different AOI.
+        </div>
+      </div>`);
+      return;
+    }
+
     renderResult(result);
     document.getElementById("results").style.display = "block";
 
   } catch (err) {
+    stopTimer();
     setStatus(`<div class="error-box">Error: ${err.message}</div>`);
   } finally {
     btn.disabled = false;
@@ -339,31 +423,43 @@ function renderResult(result) {
     statsSection.style.display = "none";
   }
 
-  // Images
+  // #5 — deduplicate images: skip product card if it's the same file as preview
+  const previewUrl  = result.preview_png  ? outputUrl(result.preview_png)  : null;
+  const productUrl  = result.product_png  ? outputUrl(result.product_png)  : null;
+  const cloudUrl    = result.cloudmask_png ? outputUrl(result.cloudmask_png) : null;
+  const productLabel = (result.spec?.product || "product").replace("_", " ").toUpperCase();
+
+  const rawImages = [
+    { url: previewUrl, label: "True Colour" },
+    { url: (productUrl && productUrl !== previewUrl) ? productUrl : null, label: productLabel },
+    { url: cloudUrl,   label: "Cloud Mask Overlay" },
+  ];
+
   const imagesEl = document.getElementById("images-display");
   imagesEl.innerHTML = "";
-  const images = [
-    {path: result.preview_png, label: "True Colour"},
-    {path: result.product_png, label: result.spec?.product?.toUpperCase() || "Product"},
-    {path: result.cloudmask_png, label: "Cloud Mask Overlay"},
-  ];
-  images.forEach(({path, label}) => {
-    if (!path) return;
-    const url = outputUrl(path);
+  rawImages.forEach(({url, label}) => {
+    if (!url) return;
     const card = document.createElement("div");
     card.className = "img-card";
-    card.innerHTML = `<img src="${url}" loading="lazy" /><div class="img-label">${label}</div>`;
+    // #10 — wrap in <a> for click-to-enlarge in a new tab
+    card.innerHTML = `
+      <a href="${url}" target="_blank" rel="noopener" title="Open full resolution">
+        <img src="${url}" loading="lazy" style="display:block;width:100%" />
+      </a>
+      <div class="img-label">${label}</div>
+    `;
     imagesEl.appendChild(card);
   });
 
-  // QA
+  // #6 — QA checks with human-readable labels
   const qaEl = document.getElementById("qa-display");
+  const icons = {pass: "✓", warn: "⚠", fail: "✗"};
   qaEl.innerHTML = (result.checks || []).map(ch => {
     const iconClass = `status-${ch.status}`;
-    const icons = {pass: "✓", warn: "⚠", fail: "✗"};
+    const label = CHECK_LABELS[ch.id] || ch.id;
     return `
       <div class="qa-row">
-        <div class="qa-id"><span class="${iconClass}">${icons[ch.status] || "?"}</span> ${ch.id}</div>
+        <div class="qa-id"><span class="${iconClass}">${icons[ch.status] || "?"}</span> ${label}</div>
         <div class="qa-msg">${ch.message}</div>
       </div>
     `;

@@ -121,7 +121,7 @@ def parse_rules(text: str) -> QuerySpec:
                 break
 
     if aoi_name is None:
-        aoi_name = "unknown"
+        aoi_name = "__unknown__"
         bbox = [-180, -90, 180, 90]
 
     # --- Dates ---

@@ -26,8 +26,19 @@ class TextRequest(BaseModel):
     text: str
 
 
+class QuerySpecRequest(BaseModel):
+    aoi_name: str
+    bbox: list[float]
+    start: str
+    end: str
+    product: str = "true_color"
+    max_aoi_cloud: float = 100.0
+    source_text: str = ""
+    parsed_by: str = "rules"
+
+
 class SpecRequest(BaseModel):
-    spec: dict
+    spec: QuerySpecRequest
 
 
 def _dc_to_dict(obj):
@@ -72,16 +83,16 @@ def api_chip(req: SpecRequest):
     from app.pipeline import run
 
     try:
-        d = req.spec
+        s = req.spec
         spec = QuerySpec(
-            aoi_name=d["aoi_name"],
-            bbox=d["bbox"],
-            start=d["start"],
-            end=d["end"],
-            product=d.get("product", "true_color"),
-            max_aoi_cloud=float(d.get("max_aoi_cloud", 100.0)),
-            source_text=d.get("source_text", ""),
-            parsed_by=d.get("parsed_by", "rules"),
+            aoi_name=s.aoi_name,
+            bbox=list(s.bbox),
+            start=s.start,
+            end=s.end,
+            product=s.product,
+            max_aoi_cloud=s.max_aoi_cloud,
+            source_text=s.source_text,
+            parsed_by=s.parsed_by,
         )
         result = run(spec)
         return _dc_to_dict(result)
