@@ -2,6 +2,13 @@
 
 > *Not "search is slow" — "search is confidently incorrect."*
 
+> **Hackathon build.** A solo entry for a "Fix It" track (take something broken and fix it), with a 90-minute build
+> budget. I framed the problem, measured the two example scenes, prepared the demo data and wrote the build spec
+> ([`BOB.md`](BOB.md), [`PLAN.md`](PLAN.md)). A coding agent ("Bob") wrote the application code from that spec, ticket
+> by ticket ([`work-log.md`](work-log.md)). Case study:
+> [silentashish.com/projects/cloud-honest-image-pipeline](https://www.silentashish.com/projects/cloud-honest-image-pipeline)
+> (live once published).
+
 CHIP is a natural-language satellite imagery pipeline that fixes two silent bugs present in virtually every Sentinel-2 workflow written since 2022: **scene-level cloud filtering that doesn't apply to your AOI**, and **a reflectance encoding offset that shifts mean NDVI by 40%** with no error or warning.
 
 ---
@@ -33,8 +40,8 @@ CHIP parses that sentence, searches the full catalog without a cloud filter, sco
 
 ```bash
 # Clone and install
-git clone https://github.com/your-org/chip
-cd chip
+git clone https://github.com/silentashish/Cloud-Honest-Image-Pipeline
+cd Cloud-Honest-Image-Pipeline
 uv venv --python 3.12 && uv pip install -r requirements.txt
 
 # Start the web UI
@@ -70,6 +77,20 @@ true color over bbox=[-123.10,44.52,-123.02,44.58], August 2024
 ---
 
 ## How It Works
+
+```mermaid
+flowchart TB
+  S["Sentence"] --> P["parse: rules first, optional LLM fallback"]
+  P --> Q["QuerySpec: area, dates, product, cloud limit"]
+  Q --> ST["STAC search on Earth Search, no cloud filter"]
+  ST --> R["Rank up to 8 candidates by cloud over the area (SCL band)"]
+  R --> B["Windowed reads of the red, green, blue and NIR bands"]
+  B --> O["Apply the reflectance offset; render true colour, NDVI or NDWI"]
+  O --> C["Five QA checks"]
+  C --> OUT["CLI, JSON API, web page"]
+```
+
+In more detail:
 
 ```
 sentence
@@ -112,11 +133,23 @@ app/
 web/
   index.html      single-file dark UI, no framework, no build step
 demo/
-  aois.geojson    5 named AOIs with bboxes
+  aois.geojson    4 named AOIs with bboxes
   queries.txt     6 example queries
   cache/          pre-fetched STAC items + evidence.json
   assets/         pre-generated PNGs for offline mode
 ```
+
+---
+
+## Screenshots
+
+![The CHIP web page for "true color over punjab on 15 July 2024": the comparison table shows 12.2% catalogue cloud against 82.7% over the area; below are the true-colour image, full of cumulus, and the cloud-mask overlay.](docs/screenshots/web-ui-punjab.webp)
+
+*Offline mode, Punjab scene. Contains modified Copernicus Sentinel data 2024.*
+
+| Punjab, 15 Jul 2024: true colour and cloud mask | Willamette, 2 Aug 2024: NDVI without and with the offset |
+| --- | --- |
+| ![True colour, mostly cloud](demo/assets/punjab_false_clear_rgb.png) ![Cloud mask covering most of the area](demo/assets/punjab_false_clear_cloudmask.png) | ![NDVI without the offset, browner](demo/assets/willamette_wrongly_rejected_ndvi_no_offset.png) ![NDVI with the offset](demo/assets/willamette_wrongly_rejected_ndvi_correct.png) |
 
 ---
 
@@ -151,6 +184,11 @@ uv run python demo/reproduce_assets.py
 uv run pytest tests/ -v
 ```
 
+These are **two hand-picked example scenes** (n = 2). They show that the failure happens, not how often. On
+2026-09-24 (UTC), a fresh clone reproduced them exactly: 7/7 tests passed, `aoi_cloud_fraction` returned 12.23 → 82.65
+and 47.44 → 1.89, mean NDVI came out 0.2989 → 0.4974, and `reproduce_assets.py` regenerated every file in `demo/`
+byte-for-byte.
+
 Golden numbers asserted in the test suite:
 
 ```
@@ -158,6 +196,14 @@ Punjab    scene=12.2%  →  AOI=82.7%   (false-clear: passes every filter, image
 Willamette  scene=47.4%  →  AOI=1.9%  (wrongly rejected: perfect image, thrown away)
 NDVI naive=0.299  →  correct=0.497    (Δ > 0.15 from missing BOA offset)
 ```
+
+---
+
+## Known issues
+
+- **Images don't load in live (non-offline) mode.** The page builds image URLs by splitting on `/outputs/`, but the API
+  returns relative `outputs/…` paths. Diagnosis and reproduction: [`image-not-loading.md`](image-not-loading.md).
+  Offline mode is unaffected.
 
 ---
 
