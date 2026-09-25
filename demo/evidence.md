@@ -1,7 +1,7 @@
 # Evidence
 
 Every number here came from real Sentinel-2 L2A COGs on AWS via Earth Search, computed
-during preparation on 2025-09-17. Nothing is illustrative. Raw values in
+during preparation on 2026-09-17. Nothing is illustrative. Raw values in
 `cache/evidence.json`, the STAC items that produced them in `cache/*_item.json`.
 
 Method: read the `scl` (Scene Classification) asset over the AOI window only; cloud =

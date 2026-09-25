@@ -2,10 +2,11 @@
 
 > *Not "search is slow" — "search is confidently incorrect."*
 
-> **Hackathon build.** A solo entry for a "Fix It" track (take something broken and fix it), with a 90-minute build
-> budget. I framed the problem, measured the two example scenes, prepared the demo data and wrote the build spec
-> ([`BOB.md`](BOB.md), [`PLAN.md`](PLAN.md)). A coding agent ("Bob") wrote the application code from that spec, ticket
-> by ticket ([`work-log.md`](work-log.md)). Case study:
+> **Hackathon build.** A solo entry to the IBM BoB Hackathon (AI After Hours, 17 September 2026), where every product
+> had to be built with IBM's Bob coding agent in under two hours. On its "Fix It" track (take something broken and fix
+> it) I planned a 90-minute build. I framed the problem, measured the two example scenes, prepared the demo data and
+> wrote the build spec ([`BOB.md`](BOB.md), [`PLAN.md`](PLAN.md)). Bob wrote the application code from that spec,
+> ticket by ticket ([`work-log.md`](work-log.md)). Case study:
 > [silentashish.com/projects/cloud-honest-image-pipeline](https://www.silentashish.com/projects/cloud-honest-image-pipeline)
 > (live once published).
 
@@ -220,4 +221,4 @@ NDVI naive=0.299  →  correct=0.497    (Δ > 0.15 from missing BOA offset)
 
 ## License
 
-MIT
+MIT, see [`LICENSE`](LICENSE).

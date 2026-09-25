@@ -30,7 +30,7 @@ plus a QA report naming what would otherwise have been silently wrong.
 
 ---
 
-# 2. Verified facts (measured against real data on 2025-09-17 — do not change these numbers)
+# 2. Verified facts (measured against real data on 2026-09-17 — do not change these numbers)
 
 These are real, reproducible, and are the acceptance criteria for the build.
 
