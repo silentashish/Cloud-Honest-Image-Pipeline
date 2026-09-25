@@ -28,7 +28,7 @@ A cloud system 80 km to the east of your field pushes your scene's `eo:cloud_cov
 
 ## 2. The Evidence — Two Real Scenes, Measured
 
-These numbers are not illustrative. They were computed on 2025-09-17 from real Sentinel-2 L2A Cloud Optimized GeoTIFFs on AWS via the Earth Search catalog. Every value is reproducible.
+These numbers are not illustrative. They were computed on 2026-09-17 from real Sentinel-2 L2A Cloud Optimized GeoTIFFs on AWS via the Earth Search catalog. Every value is reproducible.
 
 ### Scene 1 — Punjab, India (15 July 2024)
 
